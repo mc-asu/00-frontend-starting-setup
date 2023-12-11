@@ -19,7 +19,7 @@ const POST_FORM = {
     value: '',
     valid: false,
     touched: false,
-    validators: [required]
+    validators: [required] 
   },
   content: {
     value: '',
