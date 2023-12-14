@@ -8,6 +8,7 @@ import Paginator from '../../components/Paginator/Paginator';
 import Loader from '../../components/Loader/Loader';
 import ErrorHandler from '../../components/ErrorHandler/ErrorHandler';
 import './Feed.css';
+import image from '../../components/Image/Image';
 
 class Feed extends Component {
   state = {
@@ -62,6 +63,7 @@ class Feed extends Component {
               _id
               title
               content
+              imageUrl
               creator {
                 name
               }
@@ -149,35 +151,46 @@ class Feed extends Component {
       editLoading: true
     });
     const formData = new FormData()
-    formData.append('title', postData.title)
-    formData.append('content', postData.content)
     formData.append('image', postData.image)
-    let graphqlQuery = {
-      query: `
-        mutation {
-          createPost(postInput: {title: "${postData.title}", content: "${postData.content}", imageUrl: "some url"}) {
-            _id
-            title
-            content
-            imageUrl
-            creator {
-              name
-            }
-            createdAt
-          }
-        }
-      `
+    if(this.state.editPost) {
+      formData.append('oldPath', this.state.editPost.imagePath)
     }
-    
-    fetch('http://localhost:8080/graphql', {
-      method: 'POST',
-      body: JSON.stringify(graphqlQuery),
-      headers: {
+    fetch('http://localhost:8080/post-image', {
+      method: 'PUT',
+      body: formData,
+      headers: { 
         Authorization: `Bearer ${this.props.token}`,
-        'Content-Type': 'application/json'
       }
     })
-      .then(res => {
+    .then(res => res.json())
+    .then(fileResData => {
+      const imageUrl = fileResData.filePath
+      let graphqlQuery = {
+        query: `
+          mutation {
+            createPost(postInput: {title: "${postData.title}", content: "${postData.content}", imageUrl: "${imageUrl}"}) {
+              _id
+              title
+              content
+              imageUrl
+              creator {
+                name
+              }
+              createdAt
+            }
+          }
+        `
+      }
+      
+      return fetch('http://localhost:8080/graphql', {
+        method: 'POST',
+        body: JSON.stringify(graphqlQuery),
+        headers: {
+          Authorization: `Bearer ${this.props.token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+    }).then(res => {
         return res.json();
       })
       .then(resData => {
@@ -188,13 +201,14 @@ class Feed extends Component {
           throw new Error('Creating a post failed');
         } 
         console.log(resData)
-        const { _id, title, content, createdAt, creator} = resData.data.createPost
+        const { _id, title, content, createdAt, creator, imageUrl} = resData.data.createPost
         const post = {
           _id: _id,
           title: title,
           content: content,
           creator: creator,
-          createdAt: createdAt
+          createdAt: createdAt,
+          imagePath: imageUrl
         };
         this.setState(prevState => {
           let updatedPosts = [...prevState.posts];
